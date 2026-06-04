@@ -4,7 +4,7 @@ info:
   version: 1.0.0
   description: Tài liệu hướng dẫn sử dụng API hệ thống phòng Gym
 servers:
-  - url: http://localhost:3000/api
+  - url: http://localhost:8888/api
 paths:
   /auth/login:
     post:
