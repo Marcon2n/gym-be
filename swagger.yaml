@@ -88,6 +88,405 @@ paths:
                   accessToken: "eyJhbGciOi..."
                 error: null
 
+  /auth/profile/change-password:
+    post:
+      summary: Đổi mật khẩu chủ động theo nhu cầu người dùng (Yêu cầu Token)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - old_password
+                - new_password
+              properties:
+                old_password:
+                  type: string
+                  example: "12345678"
+                new_password:
+                  type: string
+                  example: "newpass999"
+      responses:
+        200:
+          description: Đổi mật khẩu thành công
+
+  /auth/me:
+    get:
+      summary: Lấy thông tin cá nhân của tài khoản đang đăng nhập (F5 ứng dụng)
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Trả về thông tin hồ sơ theo View tương ứng (Member/Staff)
+
+  /auth/logout:
+    post:
+      summary: Đăng xuất tài khoản
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Đăng xuất thành công
+
+  /auth/reset-password-by-admin:
+    post:
+      summary: Tính năng "Reset bằng cơm" dành riêng cho Admin hoặc Lễ tân
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+                - type
+              properties:
+                userId:
+                  type: integer
+                  example: 5
+                type:
+                  type: string
+                  enum: [member, staff]
+                  example: "member"
+      responses:
+        200:
+          description: Đã đưa mật khẩu user đích về '123456'
+
+  /gym/profile/update:
+    put:
+      summary: Cập nhật thông tin cá nhân của tài khoản hiện tại (Yêu cầu Token)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Linh Modder"
+                phone:
+                  type: string
+                  example: "0912345678"
+                gender:
+                  type: integer
+                  example: 1
+                birthday:
+                  type: string
+                  format: date
+                  example: "1998-05-20"
+                province_code:
+                  type: string
+                  example: "01"
+                ward_code:
+                  type: string
+                  example: "00001"
+      responses:
+        200:
+          description: Cập nhật thành công
+
+  /gym/packages:
+    get:
+      summary: Lấy danh sách tất cả các gói tập (Mọi Role)
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Thành công
+    post:
+      summary: Thêm gói tập mới (Chỉ dành cho ADMIN)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - duration_months
+                - price
+              properties:
+                name:
+                  type: string
+                  example: "Gói Vip 6 Tháng"
+                duration_months:
+                  type: integer
+                  example: 6
+                price:
+                  type: number
+                  example: 3500000
+                description:
+                  type: string
+                  example: "Được tập toàn thời gian, tặng kèm 2 buổi PT"
+      responses:
+        201:
+          description: Tạo thành công
+
+  /gym/packages/{id}:
+    get:
+      summary: Xem chi tiết một gói tập
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Thành công
+    put:
+      summary: Sửa đổi thông tin gói tập (Chỉ dành cho ADMIN)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Gói Vip 6 Tháng Gold"
+                duration_months:
+                  type: integer
+                  example: 6
+                price:
+                  type: number
+                  example: 3900000
+                description:
+                  type: string
+                  example: "Bao gồm cả xông hơi bồn sục"
+      responses:
+        200:
+          description: Cập nhật thành công
+    delete:
+      summary: Xóa một gói tập (Chỉ dành cho ADMIN)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Xóa thành công
+
+  /gym/members/register:
+    post:
+      summary: Đăng ký / Tạo tài khoản hội viên mới (KHÔNG TOKEN - CHỈ CHECK MÃ THANH TOÁN)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - phone
+                - transaction_code
+              properties:
+                name:
+                  type: string
+                  example: "Nguyễn Văn Hội Viên"
+                phone:
+                  type: string
+                  example: "0977888999"
+                password:
+                  type: string
+                  description: "Mật khẩu tự chọn của khách. Nếu Lễ tân tạo hộ tại quầy có thể để trống để nhận mật khẩu mặc định 123456."
+                  example: "khach123"
+                gender:
+                  type: integer
+                  example: 1
+                birthday:
+                  type: string
+                  format: date
+                  example: "2001-09-30"
+                province_code:
+                  type: string
+                  example: "01"
+                ward_code:
+                  type: string
+                  example: "00001"
+                transaction_code:
+                  type: string
+                  description: "Mã giao dịch ngân hàng/tiền mặt do Front-end tự sinh ngẫu nhiên truyền lên"
+                  example: "MOCK_PAYMENT_2026_XYZ"
+      responses:
+        201:
+          description: Tạo tài khoản hội viên và kích hoạt thành công!
+        400:
+          description: Thiếu mã giao dịch (transaction_code) hoặc trùng số điện thoại
+
+  /admin/create-staff:
+    post:
+      summary: Tạo tài khoản Nhân viên mới (PT, Lễ tân, Admin - BẮT BUỘC TOKEN ADMIN)
+      security:
+        - BearerAuth: [] # Dòng này hiển thị cái ổ khóa trên Swagger
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - name
+                - phone
+                - role
+              properties:
+                username:
+                  type: string
+                  example: "pt_linh_bachkhoa"
+                password:
+                  type: string
+                  description: "Để trống nếu muốn hệ thống tự động cấp mật khẩu mặc định 123456"
+                  example: ""
+                name:
+                  type: string
+                  example: "HLV Nguyễn Văn Linh"
+                phone:
+                  type: string
+                  example: "0922334455"
+                role:
+                  type: string
+                  enum: [ADMIN, PT, RECEPTIONIST]
+                  example: "PT"
+      responses:
+        201:
+          description: Tạo tài khoản nhân sự thành công
+        403:
+          description: Token không hợp lệ hoặc không phải quyền ADMIN
+
+  /admin/staffs:
+    get:
+      summary: Lấy danh sách tất cả nhân viên hệ thống (YÊU CẦU TOKEN ADMIN)
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Thành công
+
+  /admin/staffs/{id}:
+    get:
+      summary: Xem chi tiết 1 nhân viên (YÊU CẦU TOKEN ADMIN)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Thành công
+    put:
+      summary: Chỉnh sửa thông tin nhân viên hoặc khóa/mở khóa tài khoản (YÊU CẦU TOKEN ADMIN)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "HLV Linh Đẹp Trai"
+                phone:
+                  type: string
+                  example: "0988888888"
+                role:
+                  type: string
+                  enum: [ADMIN, PT, RECEPTIONIST]
+                  example: "PT"
+                is_active:
+                  type: boolean
+                  example: false # Chuyển thành false để khóa quyền truy cập của nhân viên này
+      responses:
+        200:
+          description: Chỉnh sửa thành công
+    delete: # <--- Vẫn là method DELETE chuẩn RESTful
+      summary: Xóa nhân viên hệ thống (YÊU CẦU TOKEN ADMIN)
+      description: Front-end gửi request DELETE lên, Backend sẽ tự động xử lý đánh dấu xóa mềm bằng cách hạ cờ is_active = false.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Đã xóa mềm nhân viên thành công.
+
+  /admin/members:
+    get:
+      summary: Lấy danh sách tất cả hội viên phòng gym (Yêu cầu Token Admin/Lễ tân)
+      security:
+        - BearerAuth: []
+      responses:
+        200:
+          description: Thành công
+
+  /admin/members/{id}:
+    get:
+      summary: Xem chi tiết hồ sơ 1 hội viên (Yêu cầu Token Admin/Lễ tân)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Thành công
+    delete:
+      summary: Vô hiệu hóa / Khóa mềm tài khoản hội viên (Yêu cầu Token Admin/Lễ tân)
+      description: API sử dụng phương thức DELETE chuẩn RESTful để thực hiện hành động xóa mềm (hạ trạng thái status về -1), không xóa vật lý dưới DB.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        200:
+          description: Đã khóa tài khoản hội viên thành công.
+
 components:
   securitySchemes:
     BearerAuth:

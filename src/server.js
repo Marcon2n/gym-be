@@ -7,6 +7,8 @@ require('dotenv').config();
 
 const responseFormatter = require('./middlewares/responseMiddleware');
 const authRoutes = require('./routes/authRoutes');
+const gymRoutes = require('./routes/gymRoutes');
+const adminRoutes = require('./routes/adminRoutes');
 
 const app = express();
 
@@ -23,6 +25,8 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Đăng ký các Route API chính thức
 app.use('/api/auth', authRoutes);
+app.use('/api/gym', gymRoutes);
+app.use('/api/admin', adminRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

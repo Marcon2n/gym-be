@@ -99,4 +99,153 @@ const forceChangePassword = async (req, res) => {
   }
 };
 
-module.exports = { login, forceChangePassword };
+const resetPasswordByAdmin = async (req, res, next) => {
+  const { userId, type } = req.body;
+  const adminRole = req.user.role; // Lấy từ token của người đang thực hiện lệnh
+
+  try {
+    // Phân quyền nâng cao: Chỉ ADMIN và RECEPTIONIST mới được dùng tính năng này
+    if (adminRole !== 'ADMIN' && adminRole !== 'RECEPTIONIST') {
+      const error = new Error("Bạn không có quyền thực hiện chức năng này!");
+      error.statusCode = 403;
+      error.code = "FORBIDDEN_ACCESS";
+      return next(error);
+    }
+
+    // Nhân viên Lễ tân thì không được phép reset mật khẩu của nhân viên khác (hoặc Admin)
+    if (adminRole === 'RECEPTIONIST' && type === 'staff') {
+      const error = new Error("Lễ tân chỉ có quyền reset mật khẩu cho Hội viên!");
+      error.statusCode = 403;
+      error.code = "FORBIDDEN_ACCESS";
+      return next(error);
+    }
+
+    // Mã hóa mật khẩu mặc định '123456'
+    const salt = await bcrypt.genSalt(10);
+    const hashedDefaultPass = await bcrypt.hash('123456', salt);
+
+    let result;
+    if (type === 'member') {
+      result = await pool.query('UPDATE members SET password = $1 WHERE id = $2', [hashedDefaultPass, userId]);
+    } else if (type === 'staff') {
+      result = await pool.query('UPDATE staffs SET password = $1 WHERE id = $2', [hashedDefaultPass, userId]);
+    } else {
+      const error = new Error("Loại tài khoản cần reset không hợp lệ!");
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    if (result.rowCount === 0) {
+      const error = new Error("Không tìm thấy người dùng có ID này trong hệ thống!");
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    return res.status(200).json({
+      message: `Đã reset mật khẩu của người dùng về '123456' thành công.`
+    });
+
+  } catch (error) {
+    return next(error); // Đẩy lỗi về errorMiddleware tự lo
+  }
+};
+
+// 2. API: Tự đổi mật khẩu chủ động khi đang trong ứng dụng
+const activeChangePassword = async (req, res, next) => {
+  const { old_password, new_password } = req.body;
+  const { id, role } = req.user; // Lấy từ token giải mã qua Middleware
+
+  try {
+    let userQuery;
+    if (role === 'MEMBER') {
+      userQuery = await pool.query('SELECT password FROM members WHERE id = $1', [id]);
+    } else {
+      // Nếu role là ADMIN, PT, RECEPTIONIST thì đều nằm trong bảng staffs
+      userQuery = await pool.query('SELECT password FROM staffs WHERE id = $1', [id]);
+    }
+
+    const user = userQuery.rows[0];
+    if (!user) {
+      const error = new Error("Không tìm thấy thông tin tài khoản!");
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    // So sánh mật khẩu cũ người dùng nhập với mật khẩu mã hóa trong DB
+    const isMatch = await bcrypt.compare(old_password, user.password);
+    if (!isMatch) {
+      const error = new Error("Mật khẩu cũ không chính xác!");
+      error.statusCode = 400;
+      error.code = "WRONG_OLD_PASSWORD";
+      return next(error);
+    }
+
+    // Mã băm mật khẩu mới
+    const salt = await bcrypt.genSalt(10);
+    const hashedNewPass = await bcrypt.hash(new_password, salt);
+
+    if (role === 'MEMBER') {
+      await pool.query('UPDATE members SET password = $1 WHERE id = $2', [hashedNewPass, id]);
+    } else {
+      await pool.query('UPDATE staffs SET password = $1 WHERE id = $2', [hashedNewPass, id]);
+    }
+
+    return res.status(200).json({
+      message: "Đổi mật khẩu mới thành công!"
+    });
+
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 3. API: Lấy thông tin tài khoản hiện tại (Tận dụng View địa chính hôm trước làm)
+const getMe = async (req, res, next) => {
+  const { id, role } = req.user;
+
+  try {
+    let userResult;
+
+    if (role === 'MEMBER') {
+      // Chọc thẳng vào View thông tin hội viên đã JOIN tỉnh/phường
+      userResult = await pool.query('SELECT id, name, phone, gender, birthday, status, province_name, ward_name, created_at FROM v_member_profiles WHERE id = $1', [id]);
+    } else {
+      // Chọc vào View nhân viên (ADMIN, PT, RECEPTIONIST)
+      userResult = await pool.query('SELECT id, name, username, phone, role, is_active, province_name, ward_name, created_at FROM v_staff_profiles WHERE id = $1', [id]);
+    }
+
+    const userData = userResult.rows[0];
+    if (!userData) {
+      const error = new Error("Không tìm thấy dữ liệu hồ sơ!");
+      error.statusCode = 404;
+      return next(error);
+    }
+
+    return res.status(200).json(userData);
+
+  } catch (error) {
+    return next(error);
+  }
+};
+
+// 4. API: Đăng xuất hệ thống (Phía Backend)
+const logout = async (req, res, next) => {
+  try {
+    // Với JWT stateless, phía FE xóa token là chính. 
+    // Trả về thành công để FE biết đường điều hướng về trang Login.
+    return res.status(200).json({
+      message: "Đăng xuất tài khoản thành công."
+    });
+  } catch (error) {
+    return next(error);
+  }
+};
+
+module.exports = { 
+  login, 
+  forceChangePassword, 
+  resetPasswordByAdmin, 
+  activeChangePassword, 
+  getMe, 
+  logout 
+};
