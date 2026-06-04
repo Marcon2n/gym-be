@@ -1,0 +1,96 @@
+openapi: 3.0.0
+info:
+  title: API Quản Lý Phòng Gym - Bách Khoa
+  version: 1.0.0
+  description: Tài liệu hướng dẫn sử dụng API hệ thống phòng Gym
+servers:
+  - url: http://localhost:3000/api
+paths:
+  /auth/login:
+    post:
+      summary: Đăng nhập hệ thống (Chung cho cả Hội viên và Nhân viên)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username_or_phone
+                - password
+                - type
+              properties:
+                username_or_phone:
+                  type: string
+                  example: "0987654321"
+                password:
+                  type: string
+                  example: "123456"
+                type:
+                  type: string
+                  enum: [member, staff]
+                  example: "member"
+      responses:
+        200:
+          description: Đăng nhập thành công với mật khẩu thường
+          content:
+            application/json:
+              example:
+                success: true
+                statusCode: 200
+                message: "Thao tác thành công"
+                data:
+                  accessToken: "eyJhbGciOi..."
+                  role: "MEMBER"
+                  name: "Nguyễn Văn A"
+                error: null
+        403:
+          description: Tài khoản bị khóa HOẶC bắt buộc phải đổi mật khẩu mặc định
+          content:
+            application/json:
+              example:
+                success: false
+                statusCode: 403
+                message: "Đã xảy ra lỗi hệ thống"
+                data: null
+                error:
+                  code: "NEED_CHANGE_PASSWORD"
+                  temporaryToken: "eyJhbGciOi..."
+
+  /auth/change-password:
+    post:
+      summary: Ép đổi mật khẩu mặc định (Yêu cầu Token ở Header)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - new_password
+              properties:
+                new_password:
+                  type: string
+                  example: "newpass123"
+      responses:
+        200:
+          description: Đổi mật khẩu thành công và cấp Token xịn mới
+          content:
+            application/json:
+              example:
+                success: true
+                statusCode: 200
+                message: "Thao tác thành công"
+                data:
+                  message: "Đổi mật khẩu thành công!"
+                  accessToken: "eyJhbGciOi..."
+                error: null
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

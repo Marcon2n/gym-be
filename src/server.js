@@ -1,28 +1,31 @@
-const express = require("express");
-const cors = require("cors");
-require("dotenv").config();
+const express = require('express');
+const cors = require('cors');
+const path = require('path');
+const YAML = require('yamljs');
+const swaggerUi = require('swagger-ui-express');
+require('dotenv').config();
 
-// Import các middleware của mình
-const responseFormatter = require("./middlewares/responseMiddleware");
-const errorHandler = require("./middlewares/errorMiddleware");
-const authRoutes = require("./routes/authRoutes");
+const responseFormatter = require('./middlewares/responseMiddleware');
+const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 
-// 1. Cấu hình các middleware cơ bản hệ thống
+// Đọc cấu hình Swagger
+const swaggerDocument = YAML.load(path.join(__dirname, '../swagger.yaml'));
+
+// Cấu hình Middleware toàn cục
 app.use(cors());
 app.use(express.json());
+app.use(responseFormatter); // Tự động bọc mọi response trả về theo dạng chuẩn
 
-// 2. Gắn Middleware bọc format dữ liệu trả về (Đặt TRƯỚC router)
-app.use(responseFormatter);
+// Router cho tài liệu API Swagger UI
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
-// 3. Đăng ký các tuyến đường API
-app.use("/api/auth", authRoutes);
-
-// 4. Gắn Middleware xử lý Exception tập trung (BẮT BUỘC đặt cuối cùng, SAU các router)
-app.use(errorHandler);
+// Đăng ký các Route API chính thức
+app.use('/api/auth', authRoutes);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server đang chạy ngon lành tại cổng: ${PORT}`);
+  console.log(`🚀 Server đang khởi chạy tại cổng: ${PORT}`);
+  console.log(`📝 Xem tài liệu API Swagger tại: http://localhost:${PORT}/api-docs`);
 });
