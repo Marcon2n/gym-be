@@ -6,7 +6,7 @@ const bcrypt = require('bcrypt');
 // =========================================================================
 const updateMe = async (req, res, next) => {
   const { id, role } = req.user; // Lấy từ Token đã verify
-  const { name, phone, gender, birthday, province_code, ward_code } = req.body;
+  const { name, phone, gender, dob, ward_id, street } = req.body;
 
   try {
     let result;
@@ -14,18 +14,18 @@ const updateMe = async (req, res, next) => {
     if (role === 'MEMBER') {
       // Cập nhật bảng hội viên
       result = await pool.query(
-        `UPDATE members 
-         SET name = $1, phone = $2, gender = $3, birthday = $4, province_code = $5, ward_code = $6
+        `UPDATE members
+         SET name = $1, phone = $2, gender = $3, dob = $4, ward_id = $5, street = $6
          WHERE id = $7`,
-        [name, phone, gender, birthday, province_code, ward_code, id]
+        [name, phone, gender, dob, ward_id, street, id]
       );
     } else {
       // Cập nhật bảng nhân viên (ADMIN, PT, RECEPTIONIST)
       result = await pool.query(
-        `UPDATE staffs 
-         SET name = $1, phone = $2, province_code = $3, ward_code = $4
+        `UPDATE staffs
+         SET name = $1, phone = $2, ward_id = $3, street = $4
          WHERE id = $5`,
-        [name, phone, province_code, ward_code, id]
+        [name, phone, ward_id, street, id]
       );
     }
 
@@ -73,7 +73,7 @@ const getPackageById = async (req, res, next) => {
 
 // 3. THÊM GÓI TẬP MỚI (CHỈ ADMIN)
 const createPackage = async (req, res, next) => {
-  const { name, duration_months, price, description } = req.body;
+  const { name, months, price, description } = req.body;
   const { role } = req.user;
 
   // Kiểm tra quyền ADMIN gắt gao ở tầng Controller
@@ -85,9 +85,9 @@ const createPackage = async (req, res, next) => {
 
   try {
     const result = await pool.query(
-      `INSERT INTO gym_packages (name, duration_months, price, description) 
+      `INSERT INTO gym_packages (name, months, price, description) 
        VALUES ($1, $2, $3, $4) RETURNING *`,
-      [name, duration_months, price, description]
+      [name, months, price, description]
     );
     return res.status(201).json({
       message: "Tạo gói tập mới thành công!",
@@ -101,7 +101,7 @@ const createPackage = async (req, res, next) => {
 // 4. SỬA GÓI TẬP (CHỈ ADMIN)
 const updatePackage = async (req, res, next) => {
   const { id } = req.params;
-  const { name, duration_months, price, description } = req.body;
+  const { name, months, price, description } = req.body;
   const { role } = req.user;
 
   if (role !== 'ADMIN') {
@@ -113,9 +113,9 @@ const updatePackage = async (req, res, next) => {
   try {
     const result = await pool.query(
       `UPDATE gym_packages 
-       SET name = $1, duration_months = $2, price = $3, description = $4
+       SET name = $1, months = $2, price = $3, description = $4
        WHERE id = $5 RETURNING *`,
-      [name, duration_months, price, description, id]
+      [name, months, price, description, id]
     );
 
     if (result.rowCount === 0) {
@@ -169,7 +169,7 @@ const deletePackage = async (req, res, next) => {
 // III. PHÂN HỆ: TẠO TÀI KHOẢN HỘI VIÊN (CHỈ CHECK MÃ THANH TOÁN - KHÔNG TOKEN)
 // =========================================================================
 const registerMember = async (req, res, next) => {
-  const { name, phone, password, gender, birthday, province_code, ward_code, transaction_code } = req.body;
+  const { name, phone, password, gender, dob, transaction_code } = req.body;
 
   try {
     // 1. Kiểm tra xem số điện thoại đã tồn tại chưa
@@ -180,25 +180,24 @@ const registerMember = async (req, res, next) => {
       return next(error);
     }
 
-    // 2. BẮT BUỘC PHẢI CÓ MÃ THANH TOÁN (Khách tự sinh từ FE gửi lên, Lễ tân cũng gõ bừa một mã vào)
+    // 2. BẮT BUỘC PHẢI CÓ MÃ THANH TOÁN
     if (!transaction_code || transaction_code.trim() === '') {
       const error = new Error("Thao tác thất bại! Yêu cầu phải có mã xác thực thanh toán (Transaction Code).");
       error.statusCode = 400;
       return next(error);
     }
 
-    // 3. Mật khẩu: Nếu Lễ tân tạo hộ để trống thì tự gán '123456', còn khách ở nhà tự điền thì lấy pass của khách
+    // 3. Mật khẩu: Nếu để trống thì tự gán '123456'
     const finalPassword = password || '123456';
 
-    // Mã hóa mật khẩu bảo mật
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(finalPassword, salt);
 
-    // 4. Chèn trực tiếp vào PostgreSQL và kích hoạt tài khoản luôn (status = 0)
+    // 4. Chèn vào PostgreSQL
     const newMember = await pool.query(
-      `INSERT INTO members (name, phone, password, gender, birthday, province_code, ward_code, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 0) RETURNING id, name, phone, status, created_at`,
-      [name, phone, hashedPassword, gender, birthday, province_code, ward_code]
+      `INSERT INTO members (name, phone, password, gender, dob, status)
+       VALUES ($1, $2, $3, $4, $5, 0) RETURNING id, name, phone, status, created_at`,
+      [name, phone, hashedPassword, gender, dob]
     );
 
     // 5. Trả response chuẩn về cho Client

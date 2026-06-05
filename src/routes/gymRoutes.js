@@ -15,7 +15,7 @@ const {
 router.put('/profile/update', verifyToken, updateMe);
 
 // Tuyến đường CRUD Gói tập (Yêu cầu token chung để kiểm tra quyền nội bộ)
-router.get('/packages', verifyToken, getAllPackages); // Xem tất cả
+router.get('/packages', getAllPackages); // Xem tất cả - public để hiển thị trên trang đăng ký
 router.get('/packages/:id', verifyToken, getPackageById); // Xem chi tiết
 router.post('/packages', verifyToken, createPackage); // Thêm (Chỉ ADMIN)
 router.put('/packages/:id', verifyToken, updatePackage); // Sửa (Chỉ ADMIN)

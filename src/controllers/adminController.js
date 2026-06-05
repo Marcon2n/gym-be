@@ -3,7 +3,7 @@ const bcrypt = require('bcrypt');
 
 // API: Chỉ ADMIN tối cao mới tạo được Nhân viên mới (PT, Lễ tân, Admin khác)
 const adminCreateStaff = async (req, res, next) => {
-  const { username, password, name, phone, role } = req.body;
+  const { username, password, name, phone, role, cccd } = req.body;
   const creatorRole = req.user.role; // Lấy từ token của người đang gọi API
 
   // BẢO MẬT: Kiểm tra nếu kẻ đang bấm nút KHÔNG PHẢI là Admin thì đập chết request ngay
@@ -31,6 +31,19 @@ const adminCreateStaff = async (req, res, next) => {
       return next(error);
     }
 
+    if (!cccd) {
+      const error = new Error("Số CCCD/CMND là bắt buộc!");
+      error.statusCode = 400;
+      return next(error);
+    }
+
+    const checkCccd = await pool.query('SELECT id FROM staffs WHERE cccd = $1', [cccd]);
+    if (checkCccd.rows.length > 0) {
+      const error = new Error("Số CCCD/CMND này đã được đăng ký trên hệ thống!");
+      error.statusCode = 400;
+      return next(error);
+    }
+
     // 3. Xử lý mật khẩu: Nếu Admin để trống ô nhập thì tự gán '123456' để kích hoạt luồng đổi pass lần đầu
     const finalPassword = password || '123456';
     const salt = await bcrypt.genSalt(10);
@@ -38,9 +51,9 @@ const adminCreateStaff = async (req, res, next) => {
 
     // 4. Tiến hành chèn dữ liệu vào bảng staffs dưới PostgreSQL
     const result = await pool.query(
-      `INSERT INTO staffs (username, password, name, phone, role, is_active)
-       VALUES ($1, $2, $3, $4, $5, true) RETURNING id, username, name, role, is_active, created_at`,
-      [username, hashedPassword, name, phone, role]
+      `INSERT INTO staffs (username, password, name, cccd, phone, role, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, true) RETURNING id, username, name, cccd, phone, role, is_active, created_at`,
+      [username, hashedPassword, name, cccd, phone, role]
     );
 
     // 5. Phản hồi thành công
@@ -66,7 +79,7 @@ const adminGetAllStaffs = async (req, res, next) => {
   try {
     // Lấy hết nhân viên lên, sắp xếp theo ngày tạo mới nhất (Không trả về mật khẩu để bảo mật)
     const result = await pool.query(
-      'SELECT id, username, name, phone, role, is_active, created_at FROM staffs ORDER BY id DESC'
+      'SELECT id, username, name, cccd, phone, role, is_active, created_at FROM staffs ORDER BY id DESC'
     );
     return res.status(200).json(result.rows);
   } catch (error) {
@@ -86,7 +99,7 @@ const adminGetStaffById = async (req, res, next) => {
 
   try {
     const result = await pool.query(
-      'SELECT id, username, name, phone, role, is_active, created_at FROM staffs WHERE id = $1',
+      'SELECT id, username, name, cccd, phone, role, is_active, created_at FROM staffs WHERE id = $1',
       [id]
     );
 
@@ -111,7 +124,7 @@ const adminUpdateStaff = async (req, res, next) => {
   }
 
   const { id } = req.params;
-  const { name, phone, role, is_active } = req.body;
+  const { name, phone, role, is_active, cccd } = req.body;
 
   try {
     // Kiểm tra role hợp lệ nếu có thay đổi
@@ -124,14 +137,24 @@ const adminUpdateStaff = async (req, res, next) => {
       }
     }
 
+    if (cccd) {
+      const checkCccd = await pool.query('SELECT id FROM staffs WHERE cccd = $1 AND id != $2', [cccd, id]);
+      if (checkCccd.rows.length > 0) {
+        const error = new Error("Số CCCD/CMND này đã được đăng ký bởi nhân viên khác!");
+        error.statusCode = 400;
+        return next(error);
+      }
+    }
+
     const result = await pool.query(
-      `UPDATE staffs 
-       SET name = COALESCE($1, name), 
-           phone = COALESCE($2, phone), 
-           role = COALESCE($3, role), 
-           is_active = COALESCE($4, is_active)
-       WHERE id = $5 RETURNING id, username, name, phone, role, is_active`,
-      [name, phone, role, is_active, id]
+      `UPDATE staffs
+       SET name = COALESCE($1, name),
+           cccd = COALESCE($2, cccd),
+           phone = COALESCE($3, phone),
+           role = COALESCE($4, role),
+           is_active = COALESCE($5, is_active)
+       WHERE id = $6 RETURNING id, username, name, cccd, phone, role, is_active`,
+      [name, cccd, phone, role, is_active, id]
     );
 
     if (result.rowCount === 0) {
@@ -205,7 +228,7 @@ const adminGetAllMembers = async (req, res, next) => {
     // Lấy thông tin từ View địa chính hôm trước làm (v_member_profiles) cho đầy đủ tỉnh/phường
     // Sắp xếp theo ID giảm dần để ông nào mới đăng ký nhảy lên đầu bảng
     const result = await pool.query(
-      'SELECT id, name, phone, gender, birthday, status, province_name, ward_name, created_at FROM v_member_profiles ORDER BY id DESC'
+      'SELECT id, name, phone, gender, dob, status, province_name, ward_name, created_at FROM v_member_profiles ORDER BY id DESC'
     );
     return res.status(200).json(result.rows);
   } catch (error) {
@@ -226,7 +249,7 @@ const adminGetMemberById = async (req, res, next) => {
 
   try {
     const result = await pool.query(
-      'SELECT id, name, phone, gender, birthday, status, province_name, ward_name, created_at FROM v_member_profiles WHERE id = $1',
+      'SELECT id, name, phone, gender, dob, status, province_name, ward_name, created_at FROM v_member_profiles WHERE id = $1',
       [id]
     );
 

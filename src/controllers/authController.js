@@ -39,7 +39,7 @@ const login = async (req, res) => {
 
     if (isDefaultPassword) {
       const tempToken = jwt.sign(
-        { id: user.id, role: type, requireChangePass: true },
+        { id: user.id, role: type === 'staff' ? user.role : 'MEMBER', requireChangePass: true },
         process.env.JWT_SECRET,
         { expiresIn: '10m' }
       );
@@ -51,7 +51,7 @@ const login = async (req, res) => {
     }
 
     const accessToken = jwt.sign(
-      { id: user.id, role: type, requireChangePass: false },
+      { id: user.id, role: type === 'staff' ? user.role : 'MEMBER', requireChangePass: false },
       process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
@@ -76,7 +76,7 @@ const forceChangePassword = async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPass = await bcrypt.hash(new_password, salt);
 
-    if (role === 'member') {
+    if (role === 'MEMBER') {
       await pool.query('UPDATE members SET password = $1 WHERE id = $2', [hashedPass, id]);
     } else {
       await pool.query('UPDATE staffs SET password = $1 WHERE id = $2', [hashedPass, id]);
@@ -208,7 +208,7 @@ const getMe = async (req, res, next) => {
 
     if (role === 'MEMBER') {
       // Chọc thẳng vào View thông tin hội viên đã JOIN tỉnh/phường
-      userResult = await pool.query('SELECT id, name, phone, gender, birthday, status, province_name, ward_name, created_at FROM v_member_profiles WHERE id = $1', [id]);
+      userResult = await pool.query('SELECT id, name, phone, gender, dob, status, created_at FROM v_member_profiles WHERE id = $1', [id]);
     } else {
       // Chọc vào View nhân viên (ADMIN, PT, RECEPTIONIST)
       userResult = await pool.query('SELECT id, name, username, phone, role, is_active, province_name, ward_name, created_at FROM v_staff_profiles WHERE id = $1', [id]);
