@@ -4,7 +4,10 @@ info:
   version: 1.0.0
   description: Tài liệu hướng dẫn sử dụng API hệ thống phòng Gym
 servers:
-  - url: http://localhost:8888/api
+  - url: https://api.gym.devcode.sbs
+    description: Production Server (Cloudflare Tunnel)
+  - url: http://localhost:8888
+    description: Local Server
 paths:
   /auth/login:
     post:
