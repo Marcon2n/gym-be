@@ -12,17 +12,26 @@ const adminRoutes = require("./routes/adminRoutes");
 
 const app = express();
 
+app.use(
+  cors({
+    origin: true, // Tự động bắt và phản hồi chính xác domain nguồn gọi tới (http://localhost...)
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
+    credentials: true, // Cho phép đính kèm cookie / token nếu có
+    preflightContinue: false,
+    optionsSuccessStatus: 204, // Trả về 204 chuẩn chỉ cho request OPTIONS thăm dò của trình duyệt
+  }),
+);
+
 // Đọc cấu hình Swagger
 const swaggerDocument = YAML.load(path.join(__dirname, "../swagger.yaml"));
 
-// Cấu hình Middleware toàn cục
-app.use(
-  cors({
-    origin: "*", // Mở cấu hình cho phép mọi nguồn gọi tới qua Tunnel
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-  }),
-);
 app.use(express.json());
 app.use(responseFormatter); // Tự động bọc mọi response trả về theo dạng chuẩn
 

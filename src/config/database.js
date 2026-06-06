@@ -1,25 +1,22 @@
 const { Pool } = require("pg");
 require("dotenv").config();
 
+// Mã hóa các ký tự đặc biệt của mật khẩu để nhét vào URL an toàn
+const encodedPassword = encodeURIComponent(process.env.DB_PASSWORD);
+
 const pool = new Pool({
-  user: process.env.DB_USER,
-  host: process.env.DB_HOST,
-  database: process.env.DB_NAME, // Lúc này sẽ nhận giá trị là 'postgres'
-  password: process.env.DB_PASSWORD,
-  port: process.env.DB_PORT,
-  options: "-c search_path=gym_management,public",
+  // 🚨 ÉP CỨNG CHUỖI KẾT NỐI KÈM OPTIONS SEARCH_PATH TRỰC TIẾP QUA MẠNG
+  connectionString: `postgresql://${process.env.DB_USER}:${encodedPassword}@${process.env.DB_HOST}:${process.env.DB_PORT}/${process.env.DB_NAME}?options=-c%20search_path%3Dgym_management,public`,
 });
 
-// ÉP NODE.JS LUÔN LUÔN SỬ DỤNG SCHEMA GYM_MANAGEMENT
-pool.on("connect", (client) => {
-  client.query("SET search_path TO gym_management, public");
-});
-
+// Test kiểm tra kết nối ban đầu cực kỳ đơn giản
 pool.query("SELECT NOW()", (err, res) => {
   if (err) {
     console.error("❌ Lỗi kết nối PostgreSQL:", err);
   } else {
-    console.log("✅ Kết nối PostgreSQL thành công vào schema gym_management!");
+    console.log(
+      "✅ Kết nối PostgreSQL thành công! Đã ép cứng schema ở tầng mạng.",
+    );
   }
 });
 
